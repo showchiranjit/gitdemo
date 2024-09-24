@@ -105,6 +105,44 @@ describe('setStoreACCCustomer', () => {
 
 
 
+ describe('customerSearchAction', () => {
+    it('should call getCustomerDataFromOrderLookup when orderNo is provided', async () => {
+      const incident = { customer: { email: 'test@example.com' } };
+      const orderNo = 'order123';
+      OrderLookupService.mockResolvedValueOnce({ customerSearchResponse: [{ id: 1, name: 'John Doe' }] });
+
+      const result = await customerSearchAction(incident, orderNo);
+
+      expect(result).toEqual({
+        showMultipleProfiles: false,
+        customerData: { id: 1, name: 'John Doe' },
+      });
+    });
+
+    it('should call customerSearch when no orderNo and email is provided', async () => {
+      const incident = { customer: { firstName: 'John', lastName: 'Doe' } };
+      const orderNo = '';
+      CustomerSearchService.mockResolvedValueOnce({ customerSearchResponse: [{ id: 1, name: 'John Doe' }] });
+
+      const result = await customerSearchAction(incident, orderNo);
+
+      expect(result).toEqual({
+        showMultipleProfiles: true,
+        customerData: [{ id: 1, name: 'John Doe' }],
+      });
+    });
+
+    it('should resolve to null if no valid search criteria', async () => {
+      const incident = { customer: {} };
+      const orderNo = '';
+      const result = await customerSearchAction(incident, orderNo);
+
+      expect(result).toBeNull();
+    });
+  });
+
+
+
 
 
 
