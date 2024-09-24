@@ -1,78 +1,114 @@
-import { setCurrentCustomer, resetCurrentCustomer, getCustomerDataFromOrderLookup, customerSearch } from './your-module';
-import { OrderLookupService } from '../../services';
-import { CustomerSearchService } from './../services/customer';
-import { CURRENT_CUSTOMER } from './action-types';
-import { customerInitialState } from '../initial-state';
+import { customerSearchAction } from './yourFile'; // Adjust the path accordingly
+import { getCustomerDataFromOrderLookup, customerSearch } from './services'; // Mock your service functions
 
-// Mock the services
-jest.mock('../../services', () => ({
-  OrderLookupService: jest.fn(),
+jest.mock('./services', () => ({
+  getCustomerDataFromOrderLookup: jest.fn(),
+  customerSearch: jest.fn(),
 }));
 
-jest.mock('./../services/customer', () => ({
-  CustomerSearchService: jest.fn(),
-}));
+describe('customerSearchAction', () => {
+  const incident = {
+    customer: {
+      firstName: 'John',
+      lastName: 'Doe',
+      email: 'john.doe@example.com',
+      phone: '1234567890',
+    },
+  };
 
-describe('Customer Actions', () => {
-  
-  describe('setCurrentCustomer', () => {
-    it('should create an action to set the current customer', () => {
-      const data = { id: 1, name: 'John Doe' };
-      const expectedAction = {
-        type: CURRENT_CUSTOMER,
-        data,
-      };
-      expect(setCurrentCustomer(data)).toEqual(expectedAction);
-    });
+  it('should return customer data using order lookup if orderNo is provided', async () => {
+    const orderNo = '12345';
+    (getCustomerDataFromOrderLookup as jest.Mock).mockResolvedValue('mockCustomerData');
+
+    const result = await customerSearchAction(incident, orderNo);
+    expect(getCustomerDataFromOrderLookup).toHaveBeenCalledWith(orderNo);
+    expect(result).toBe('mockCustomerData');
   });
 
-  describe('resetCurrentCustomer', () => {
-    it('should create an action to reset the current customer', () => {
-      const expectedAction = {
-        type: CURRENT_CUSTOMER,
-        data: customerInitialState,
-      };
-      expect(resetCurrentCustomer()).toEqual(expectedAction);
-    });
+  it('should use email for customer search when orderNo is not provided', async () => {
+    const orderNo = '';
+    (customerSearch as jest.Mock).mockResolvedValue('mockSearchResult');
+
+    const result = await customerSearchAction(incident, orderNo);
+    expect(customerSearch).toHaveBeenCalledWith('john.doe@example.com');
+    expect(result).toBe('mockSearchResult');
   });
 
-  describe('getCustomerDataFromOrderLookup', () => {
-    it('should return customer data on successful API call', async () => {
-      const mockResponse = {
-        customerSearchResponse: [{ id: 1, name: 'John Doe' }],
-      };
-      OrderLookupService.mockResolvedValue(mockResponse);
-      const data = await getCustomerDataFromOrderLookup('123');
-      expect(data).toEqual({
-        showMultipleProfiles: false,
-        customerData: mockResponse.customerSearchResponse[0],
-      });
-    });
+  it('should use phone for customer search if email is not provided', async () => {
+    const modifiedIncident = {
+      customer: {
+        firstName: 'John',
+        lastName: 'Doe',
+        email: '',
+        phone: '1234567890',
+      },
+    };
+    const orderNo = '';
+    (customerSearch as jest.Mock).mockResolvedValue('mockSearchResult');
 
-    it('should throw an error on API failure', async () => {
-      const mockError = new Error('API failure');
-      OrderLookupService.mockRejectedValue(mockError);
-      await expect(getCustomerDataFromOrderLookup('123')).rejects.toThrow('API failure');
-    });
+    const result = await customerSearchAction(modifiedIncident, orderNo);
+    expect(customerSearch).toHaveBeenCalledWith('1234567890');
+    expect(result).toBe('mockSearchResult');
   });
 
-  describe('customerSearch', () => {
-    it('should return customer data on successful search', async () => {
-      const mockResponse = {
-        customerSearchResponse: [{ id: 1, name: 'John Doe' }],
-      };
-      CustomerSearchService.mockResolvedValue(mockResponse);
-      const data = await customerSearch('John');
-      expect(data).toEqual({
-        showMultipleProfiles: true,
-        customerData: mockResponse.customerSearchResponse,
-      });
-    });
+  it('should use firstName and lastName for customer search if neither email nor phone are provided', async () => {
+    const modifiedIncident = {
+      customer: {
+        firstName: 'John',
+        lastName: 'Doe',
+        email: '',
+        phone: '',
+      },
+    };
+    const orderNo = '';
+    (customerSearch as jest.Mock).mockResolvedValue('mockSearchResult');
 
-    it('should throw an error on search failure', async () => {
-      const mockError = new Error('Search failure');
-      CustomerSearchService.mockRejectedValue(mockError);
-      await expect(customerSearch('John')).rejects.toThrow('Search failure');
+    const result = await customerSearchAction(modifiedIncident, orderNo);
+    expect(customerSearch).toHaveBeenCalledWith('John Doe');
+    expect(result).toBe('mockSearchResult');
+  });
+
+  it('should resolve with null if no search criteria is found', async () => {
+    const modifiedIncident = {
+      customer: {
+        firstName: '',
+        lastName: '',
+        email: '',
+        phone: '',
+      },
+    };
+    const orderNo = '';
+
+    const result = await customerSearchAction(modifiedIncident, orderNo);
+    expect(result).toBeNull();
+  });
+});
+
+
+import { setStoreACCCustomer } from './yourFile'; // Adjust the path accordingly
+import { SET_STORE_ACC_CUSTOMER } from './actionTypes'; // Import your action type
+
+describe('setStoreACCCustomer', () => {
+  it('should dispatch action with correct type and customer data', () => {
+    const dispatch = jest.fn();
+    const accCustomer = { id: 1, name: 'John Doe' };
+
+    setStoreACCCustomer(dispatch, accCustomer);
+
+    expect(dispatch).toHaveBeenCalledWith({
+      type: SET_STORE_ACC_CUSTOMER,
+      data: accCustomer,
     });
   });
 });
+
+
+
+
+
+
+
+
+
+
+
