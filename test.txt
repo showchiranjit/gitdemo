@@ -1,0 +1,377 @@
+import {
+  setIncidentContexts,
+  setRepeatContact,
+  setCurrentIncident,
+  resetCurrentIncident,
+  setIncidentEventSource,
+  setIncidentQuickAction,
+  setCurrentIncidentStartTimer,
+  setCurrentIncidentCategoryAction,
+  resetContextInHomePage,
+  resetOrderWorkflowContext,
+  updateOpenIncidents,
+  startOfIncidentAssignAction,
+  wrapUpIncidentAction,
+  customerVerificationAction,
+  identityNotFoundAction,
+  customerMismatchAction,
+  createManualIncident,
+  incidentAgentAssignment,
+  NewIncidentCreationAction,
+  beaconIncidentMetricsAction,
+} from './your-action-file'; // Update with the actual file path
+
+import {
+  getIncident,
+  getIncidentStartTime,
+  getUpdateIncidentEndPayload,
+  updateIncidentForVerification,
+  updateIncidentForMismatch,
+  getCreateNewIncidentPayload,
+  getPayloadForBeaconIncidentUpdate,
+} from './../utils/incident-utils';
+
+import {
+  UpdateIncident,
+  FetchIncidentService,
+  CreateNewIncident,
+} from './../services/incident';
+
+jest.mock('./../services/incident', () => ({
+  UpdateIncident: jest.fn(),
+  FetchIncidentService: jest.fn(),
+  CreateNewIncident: jest.fn(),
+}));
+
+jest.mock('./../utils/incident-utils', () => ({
+  getIncident: jest.fn(),
+  getIncidentStartTime: jest.fn(),
+  getUpdateIncidentEndPayload: jest.fn(),
+  updateIncidentForVerification: jest.fn(),
+  updateIncidentForMismatch: jest.fn(),
+  getCreateNewIncidentPayload: jest.fn(),
+  getPayloadForBeaconIncidentUpdate: jest.fn(),
+}));
+
+describe('Action Creators', () => {
+  // Basic action creators
+  it('should create an action to set incident contexts', () => {
+    const data = { key: 'value' };
+    const expectedAction = {
+      type: INCIDENT_CONTEXTS,
+      data,
+    };
+    expect(setIncidentContexts(data)).toEqual(expectedAction);
+  });
+
+  it('should create an action to set repeat contact', () => {
+    const data = { contactId: 123 };
+    const expectedAction = {
+      type: INCIDENT_REPEAT_CONTACT,
+      data,
+    };
+    expect(setRepeatContact(data)).toEqual(expectedAction);
+  });
+
+  it('should create an action to set current incident', () => {
+    const data = { incidentId: 456 };
+    const expectedAction = {
+      type: CURRENT_INCIDENT,
+      data,
+    };
+    expect(setCurrentIncident(data)).toEqual(expectedAction);
+  });
+
+  it('should create an action to reset current incident', () => {
+    const expectedAction = {
+      type: CURRENT_INCIDENT,
+      data: {},
+    };
+    expect(resetCurrentIncident()).toEqual(expectedAction);
+  });
+
+  it('should create an action to set incident event source', () => {
+    const data = { source: 'web' };
+    const expectedAction = {
+      type: INCIDENT_EVENT_SOURCE,
+      data,
+    };
+    expect(setIncidentEventSource(data)).toEqual(expectedAction);
+  });
+
+  it('should create an action to set incident quick action', () => {
+    const data = { action: 'start' };
+    const expectedAction = {
+      type: INCIDENT_QUICK_ACTION,
+      data,
+    };
+    expect(setIncidentQuickAction(data)).toEqual(expectedAction);
+  });
+
+  it('should create an action to set current incident start timer', () => {
+    const data = { startTime: 1234567890 };
+    const expectedAction = {
+      type: INCIDENT_START_TIMER,
+      data,
+    };
+    expect(setCurrentIncidentStartTimer(data)).toEqual(expectedAction);
+  });
+
+  it('should create an action to set current incident category action', () => {
+    const data = { category: 'urgent' };
+    const expectedAction = {
+      type: INCIDENT_CATEGORY_ACTION,
+      data,
+    };
+    expect(setCurrentIncidentCategoryAction(data)).toEqual(expectedAction);
+  });
+
+  it('should create an action to reset global context', () => {
+    const expectedAction = {
+      type: RESET_GLOBAL_CONTEXT,
+    };
+    expect(resetContextInHomePage()).toEqual(expectedAction);
+  });
+
+  it('should create an action to reset order workflow context', () => {
+    const expectedAction = {
+      type: RESET_ORDER_WORKFLOW_CONTEXT,
+    };
+    expect(resetOrderWorkflowContext()).toEqual(expectedAction);
+  });
+
+  it('should create an action to update open incidents', () => {
+    const count = 5;
+    const expectedAction = {
+      type: OPEN_INCIDENTS,
+      data: count,
+    };
+    expect(updateOpenIncidents(count)).toEqual(expectedAction);
+  });
+
+  // Tests for startOfIncidentAssignAction
+  describe('startOfIncidentAssignAction', () => {
+    const mockDispatch = jest.fn();
+    const incident = { orderNo: '123', contact: { context: 'test' } };
+    const userName = 'user1';
+
+    beforeEach(() => {
+      jest.clearAllMocks();
+      getIncident.mockReturnValue(incident);
+      getIncidentStartTime.mockReturnValue(1000);
+    });
+
+    it('should dispatch actions for starting incident assign', () => {
+      startOfIncidentAssignAction(mockDispatch, incident, userName);
+
+      expect(mockDispatch).toHaveBeenCalledWith(setCurrentIncident(incident));
+      expect(mockDispatch).toHaveBeenCalledWith(setCurrentIncidentStartTimer(1000));
+    });
+
+    it('should dispatch setCurrentOrder if orderNo exists', () => {
+      startOfIncidentAssignAction(mockDispatch, incident, userName);
+      expect(mockDispatch).toHaveBeenCalledWith(setCurrentOrder({ orderNo: '123' }));
+    });
+
+    it('should not dispatch setCurrentOrder if orderNo is empty', () => {
+      incident.orderNo = '';
+      startOfIncidentAssignAction(mockDispatch, incident, userName);
+      expect(mockDispatch).not.toHaveBeenCalledWith(setCurrentOrder());
+    });
+  });
+
+  // Tests for wrapUpIncidentAction
+  describe('wrapUpIncidentAction', () => {
+    const mockDispatch = jest.fn();
+    const incidentId = '1';
+    const payload = { id: incidentId };
+    const headers = { context: null };
+
+    beforeEach(() => {
+      getUpdateIncidentEndPayload.mockReturnValue(payload);
+      UpdateIncident.mockResolvedValue({ id: incidentId });
+      FetchIncidentService.mockResolvedValue({ id: incidentId, contact: { context: null } });
+    });
+
+    it('should call UpdateIncident and then FetchIncidentService', async () => {
+      await wrapUpIncidentAction(mockDispatch, {}, {});
+      expect(UpdateIncident).toHaveBeenCalledWith(incidentId, payload, headers);
+      expect(FetchIncidentService).toHaveBeenCalledWith(incidentId);
+    });
+
+    it('should dispatch setCurrentIncident with fetched incident', async () => {
+      await wrapUpIncidentAction(mockDispatch, {}, {});
+      expect(mockDispatch).toHaveBeenCalledWith(setCurrentIncident({ id: incidentId, contact: { context: null } }));
+    });
+
+    it('should handle failure of UpdateIncident', async () => {
+      UpdateIncident.mockRejectedValue(new Error('Failed'));
+      await expect(wrapUpIncidentAction(mockDispatch, {}, {})).rejects.toEqual(null);
+    });
+  });
+
+  // Tests for customerVerificationAction
+  describe('customerVerificationAction', () => {
+    const mockDispatch = jest.fn();
+    const incidentDetails = { id: '1' };
+    const customer = { id: 'c1' };
+    const userName = 'user1';
+    const orderNo = 'order1';
+
+    beforeEach(() => {
+      updateIncidentForVerification.mockReturnValue({ id: '1', payload: {}, headers: {} });
+      UpdateIncident.mockResolvedValue({ id: '1' });
+      FetchIncidentService.mockResolvedValue({});
+    });
+
+    it('should dispatch customer and order actions', async () => {
+      await customerVerificationAction(mockDispatch, incidentDetails, customer, userName, orderNo);
+      expect(mockDispatch).toHaveBeenCalledWith(setCurrentCustomer({ ...customer, isVerified: true }));
+      expect(mockDispatch).toHaveBeenCalledWith(setCurrentOrder({ orderNo }));
+    });
+
+    it('should update incident', async () => {
+      await customerVerificationAction(mockDispatch, incidentDetails, customer, userName, orderNo);
+      expect(UpdateIncident).toHaveBeenCalledWith('1', {}, {});
+    });
+
+    it('should handle failure of UpdateIncident', async () => {
+      UpdateIncident.mockRejectedValue(new Error('Failed'));
+      await expect(customerVerificationAction(mockDispatch, incidentDetails, customer, userName)).rejects.toEqual(null);
+    });
+  });
+
+  // Tests for identityNotFoundAction
+  it('should reset current customer and order', () => {
+    const mockDispatch = jest.fn();
+    identityNotFoundAction(mockDispatch);
+    expect(mockDispatch).toHaveBeenCalledWith(resetCurrentCustomer());
+    expect(mockDispatch).toHaveBeenCalledWith(resetCurrentOrder());
+  });
+
+  // Tests for customerMismatchAction
+  describe('customerMismatchAction', () => {
+    const mockDispatch = jest.fn();
+    const incidentDetails = { id: '1' };
+    const userName = 'user1';
+
+    beforeEach(() => {
+      updateIncidentForMismatch.mockReturnValue({ id: '1', payload: {}, headers: {} });
+      UpdateIncident.mockResolvedValue({ id: '1' });
+      FetchIncidentService.mockResolvedValue({});
+    });
+
+    it('should reset customer and order', async () => {
+      await customerMismatchAction(mockDispatch, incidentDetails, userName);
+      expect(mockDispatch).toHaveBeenCalledWith(resetCurrentCustomer());
+      expect(mockDispatch).toHaveBeenCalledWith(resetCurrentOrder());
+    });
+
+    it('should update incident', async () => {
+      await customerMismatchAction(mockDispatch, incidentDetails, userName);
+      expect(UpdateIncident).toHaveBeenCalledWith('1', {}, {});
+    });
+
+    it('should handle failure of UpdateIncident', async () => {
+      UpdateIncident.mockRejectedValue(new Error('Failed'));
+      await expect(customerMismatchAction(mockDispatch, incidentDetails, userName)).rejects.toEqual(null);
+    });
+  });
+
+  // Tests for createManualIncident
+  describe('createManualIncident', () => {
+    const data = { context: 'test' };
+    const isPhone = true;
+
+    beforeEach(() => {
+      getCreateNewIncidentPayload.mockReturnValue({});
+      CreateNewIncident.mockResolvedValue({});
+    });
+
+    it('should call CreateNewIncident with correct parameters', async () => {
+      await createManualIncident(data, isPhone);
+      expect(CreateNewIncident).toHaveBeenCalledWith({}, { context: 'test' });
+    });
+  });
+
+  // Tests for incidentAgentAssignment
+  describe('incidentAgentAssignment', () => {
+    const incidents = [{ id: '1', agent: { userName: 'agent1' }, status: 'open' }];
+    const agentId = 'agent2';
+    const data = { context: 'test' };
+    const isPhone = true;
+
+    beforeEach(() => {
+      head.mockReturnValue(incidents[0]);
+    });
+
+    it('should assign incident to agent if not already assigned', async () => {
+      await incidentAgentAssignment(incidents, agentId, data, isPhone);
+      expect(UpdateIncident).toHaveBeenCalledWith('1', { userName: agentId }, { context: 'test' });
+    });
+
+    it('should return incident if already assigned', async () => {
+      const response = await incidentAgentAssignment(incidents, 'agent1', data, isPhone);
+      expect(response).toEqual({ id: '1', status: 'open' });
+    });
+
+    it('should create new incident if no incidents exist', async () => {
+      const emptyIncidents = [];
+      head.mockReturnValue(undefined);
+      await incidentAgentAssignment(emptyIncidents, agentId, data, isPhone);
+      expect(CreateNewIncident).toHaveBeenCalledWith({}, { context: 'test' });
+    });
+  });
+
+  // Tests for NewIncidentCreationAction
+  describe('NewIncidentCreationAction', () => {
+    const formData = { phone: '123-456-7890', channel: 'web' };
+    const userName = 'user1';
+    const isPhone = true;
+
+    beforeEach(() => {
+      getLastThirtyMinutesDateRange.mockReturnValue({ start: 'start', end: 'end' });
+      FetchIncidentList.mockResolvedValue({ content: [] });
+    });
+
+    it('should create a new incident when no existing incidents are found', async () => {
+      await NewIncidentCreationAction(formData, userName, isPhone);
+      expect(CreateNewIncident).toHaveBeenCalled();
+    });
+
+    it('should fetch incidents when isPhone is true', async () => {
+      await NewIncidentCreationAction(formData, userName, isPhone);
+      expect(FetchIncidentList).toHaveBeenCalled();
+    });
+  });
+
+  // Tests for beaconIncidentMetricsAction
+  describe('beaconIncidentMetricsAction', () => {
+    const mockDispatch = jest.fn();
+    const intent = 'someIntent';
+    const incidentDetails = { id: '1', contact: { channelAttributes: {} } };
+    const data = { incident: incidentDetails };
+
+    beforeEach(() => {
+      getPayloadForBeaconIncidentUpdate.mockReturnValue({});
+      UpdateIncident.mockResolvedValue({});
+    });
+
+    it('should not update if intent is missing', async () => {
+      await beaconIncidentMetricsAction(mockDispatch, null, data);
+      expect(mockDispatch).not.toHaveBeenCalled();
+    });
+
+    it('should update if ccaIntent matches', async () => {
+      incidentDetails.contact.channelAttributes.ccaIntent = `CCA2_${intent}`;
+      await beaconIncidentMetricsAction(mockDispatch, intent, data);
+      expect(mockDispatch).not.toHaveBeenCalled();
+    });
+
+    it('should update incident and dispatch setCurrentIncident', async () => {
+      await beaconIncidentMetricsAction(mockDispatch, intent, data);
+      expect(UpdateIncident).toHaveBeenCalledWith(incidentDetails.id, {});
+      expect(mockDispatch).toHaveBeenCalledWith(setCurrentIncident({ ...incidentDetails, contact: { channelAttributes: { ccaIntent: `CCA2_${intent}` } } }));
+    });
+  });
+});
