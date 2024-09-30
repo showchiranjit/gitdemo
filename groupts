@@ -1,0 +1,28 @@
+import { TripData, GroupedTrips } from './types';
+
+export function groupTripsByDate(trips: TripData[]): GroupedTrips {
+  const today = new Date().toDateString();
+  const sevenDaysAgo = new Date();
+  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+
+  return trips.reduce((acc: GroupedTrips, trip) => {
+    const tripDate = new Date(trip.date);
+    if (tripDate.toDateString() === today) {
+      acc.today.push(trip);
+    } else if (tripDate >= sevenDaysAgo) {
+      acc.past7Days.push(trip);
+    }
+    return acc;
+  }, { today: [], past7Days: [] });
+}
+
+export function searchTrips(trips: TripData[], query: string): TripData[] {
+  const lowercaseQuery = query.toLowerCase();
+  return trips.filter(trip => 
+    trip.tripId.toLowerCase().includes(lowercaseQuery) ||
+    trip.orders.some(order => 
+      order.orderId.toLowerCase().includes(lowercaseQuery) ||
+      order.customerName.toLowerCase().includes(lowercaseQuery)
+    )
+  );
+}
