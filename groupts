@@ -63,3 +63,48 @@ const TripGroup: React.FC<TripGroupProps> = ({ title, trips, onOrderSelect, sele
 };
 
 export default TripGroup;
+
+
+
+
+
+import React, { useState } from 'react';
+import { TextField, InputAdornment, Button } from '@mui/material';
+import { Search } from '@mui/icons-material';
+
+interface SearchBarProps {
+  onSearch: (query: string) => void;
+  placeholder: string;
+}
+
+const SearchBar: React.FC<SearchBarProps> = ({ onSearch, placeholder }) => {
+  const [searchQuery, setSearchQuery] = useState<string>('');
+
+  const handleSearch = () => {
+    onSearch(searchQuery);
+  };
+
+  return (
+    <div className="flex mb-4">
+      <TextField
+        fullWidth
+        variant="outlined"
+        placeholder={placeholder}
+        value={searchQuery}
+        onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearchQuery(e.target.value)}
+        InputProps={{
+          startAdornment: (
+            <InputAdornment position="start">
+              <Search />
+            </InputAdornment>
+          ),
+        }}
+      />
+      <Button variant="outlined" className="ml-2" onClick={handleSearch}>
+        Search
+      </Button>
+    </div>
+  );
+};
+
+export default SearchBar;
