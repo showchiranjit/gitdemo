@@ -1,201 +1,344 @@
-import React, { useState } from "react";
-import {
-  Accordion,
-  AccordionSummary,
-  AccordionDetails,
-  TextField,
-  Button,
-  Radio,
-  RadioGroup,
-  FormControlLabel,
-  Typography,
-} from "@mui/material";
-import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
-import LocationOnIcon from "@mui/icons-material/LocationOn";
+import React, { useState, useEffect } from 'react';
+import { TextField, InputAdornment, Button, Typography } from '@mui/material';
+import { Search } from '@mui/icons-material';
+import TripGroup from './TripGroup';
+import { TripData, GroupedTrips } from '../types';
+import { groupTripsByDate, searchTrips } from '../utils';
 
-// Mock data
-const mockTrips = [
-  {
-    id: 160,
-    date: "Aug 25, 2024",
-    timeRange: "8:00 AM - 9:00 PM CDT",
-    status: "Trip in progress",
-    orders: [
-      {
-        id: "2304902394023",
-        customer: "Kathleen Doe",
-        time: "3:15 PM - 5:00 PM",
-        status: "Delivery in progress",
-      },
-      {
-        id: "838902398402",
-        customer: "James Liu",
-        time: "2:15 PM - 3:00 PM",
-        status: "Cancelled",
-      },
-      {
-        id: "19199132432342",
-        customer: "Dora Amana",
-        time: "1:15 PM - 2:00 PM",
-        status: "Delivery in progress",
-      },
-    ],
-    pickup: {
-      name: "Walmart BENBROOK #4949",
-      time: "1:30 PM - 2:00 PM",
-      address: "6675 BUSINESS CENTER DR, HIGHLANDS RANCH, CO 80130-3603",
-    },
-  },
-  {
-    id: 15,
-    date: "Aug 25, 2024",
-    timeRange: "11:00 AM - 4:00 PM CDT",
-    status: "Trip complete",
-    orders: [
-      {
-        id: "2304902394023",
-        customer: "Kathleen Doe",
-        time: "3:15 PM - 5:00 PM",
-        status: "Delivery in progress",
-      },
-      {
-        id: "838902398402",
-        customer: "James Liu",
-        time: "2:15 PM - 3:00 PM",
-        status: "Cancelled",
-      },
-      {
-        id: "19199132432342",
-        customer: "Dora Amana",
-        time: "1:15 PM - 2:00 PM",
-        status: "Delivery in progress",
-      },
-    ],
-    pickup: {
-      name: "Walmart BENBROOK #4949",
-      time: "1:30 PM - 2:00 PM",
-      address: "6675 BUSINESS CENTER DR, HIGHLANDS RANCH, CO 80130-3603",
-    },
-  },
-  {
-    id: 50,
-    date: "Aug 25, 2024",
-    timeRange: "7:00 AM - 8:00 AM CDT",
-    status: "Trip complete",
-    orders: [],
-  },
-];
+interface TripSelectorProps {
+  trips: TripData[];
+  onOrderSelect: (orderId: string) => void;
+}
 
-const DriverOrderSelection = () => {
-  const [searchQuery, setSearchQuery] = useState("");
-  const [selectedOrder, setSelectedOrder] = useState("");
+const TripSelector: React.FC<TripSelectorProps> = ({ trips, onOrderSelect }) => {
+  const [searchQuery, setSearchQuery] = useState<string>('');
+  const [groupedTrips, setGroupedTrips] = useState<GroupedTrips>({ today: [], past7Days: [] });
+  const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
+  const tripsPerPage = 10;
+
+  useEffect(() => {
+    setGroupedTrips(groupTripsByDate(trips));
+  }, [trips]);
 
   const handleSearch = () => {
-    // Implement search functionality here
-    console.log("Searching for:", searchQuery);
+    const searchResults = searchTrips(trips, searchQuery);
+    setGroupedTrips(groupTripsByDate(searchResults));
+    setPage(1);
   };
 
-  const handleOrderSelection = (event: React.ChangeEvent<HTMLInputElement>) => {
-    setSelectedOrder(event.target.value);
+  const handleOrderSelect = (orderId: string) => {
+    setSelectedOrderId(orderId);
+    onOrderSelect(orderId);
   };
+
+  const paginatedTrips = [...groupedTrips.today, ...groupedTrips.past7Days].slice(0, page * tripsPerPage);
 
   return (
-    <div className="container mx-auto p-4 bg-gray-100">
-      <h1 className="text-xl font-semibold mb-4">
-        Select the order the driver needs help with
-      </h1>
-
-      {/* Search Bar */}
+    <div className="max-w-4xl mx-auto p-4">
+      <h1 className="text-2xl font-semibold mb-4">Select the order the driver needs help with</h1>
       <div className="flex mb-4">
         <TextField
-          className="flex-grow mr-2 bg-white"
-          placeholder="Search using trip#, order # or customer name"
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
+          fullWidth
           variant="outlined"
-          size="small"
+          placeholder="Search by trip #, order #, or customer name"
+          value={searchQuery}
+          onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearchQuery(e.target.value)}
+          InputProps={{
+            startAdornment: (
+              <InputAdornment position="start">
+                <Search />
+              </InputAdornment>
+            ),
+          }}
         />
-        <Button variant="contained" onClick={handleSearch}>
+        <Button variant="outlined" className="ml-2" onClick={handleSearch}>
           Search
         </Button>
       </div>
 
-      {/* Trips Section */}
-      <div className="space-y-4">
-        {mockTrips.map((trip, index) => (
-          <Accordion key={trip.id} defaultExpanded={index === 0}>
-            <AccordionSummary
-              expandIcon={<ExpandMoreIcon />}
-              className="bg-white"
-            >
-              <div className="flex justify-between w-full">
-                <Typography>
-                  Trip #{trip.id} | {trip.orders.length} orders | {trip.date} |{" "}
-                  {trip.timeRange}
-                </Typography>
-                <Typography
-                  className={
-                    trip.status === "Trip in progress"
-                      ? "text-blue-600"
-                      : "text-gray-600"
-                  }
-                >
-                  {trip.status}
-                </Typography>
-              </div>
-            </AccordionSummary>
-            <AccordionDetails className="bg-white">
-              <RadioGroup value={selectedOrder} onChange={handleOrderSelection}>
-                {trip.orders.map((order) => (
-                  <FormControlLabel
-                    key={order.id}
-                    value={order.id}
-                    control={<Radio />}
-                    label={
-                      <div className="flex justify-between w-full py-2 border-b">
-                        <span>
-                          {order.customer} | Order #{order.id} | {order.time}
-                        </span>
-                        <span
-                          className={
-                            order.status === "Cancelled"
-                              ? "text-red-600"
-                              : "text-green-600"
-                          }
-                        >
-                          {order.status}
-                        </span>
-                      </div>
-                    }
-                  />
-                ))}
-              </RadioGroup>
+      {paginatedTrips.length === 0 ? (
+        <Typography>
+          The driver hasn't completed a trip in the last 7 days. If the trip you're looking for is older than that, use the search bar to find it.
+        </Typography>
+      ) : (
+        <>
+          <TripGroup title="Today" trips={groupedTrips.today} onOrderSelect={handleOrderSelect} selectedOrderId={selectedOrderId} />
+          <TripGroup title="Past 7 days" trips={groupedTrips.past7Days} onOrderSelect={handleOrderSelect} selectedOrderId={selectedOrderId} />
+          
+          {paginatedTrips.length < groupedTrips.today.length + groupedTrips.past7Days.length && (
+            <Button onClick={() => setPage(page + 1)}>Load More</Button>
+          )}
+          
+          <Typography className="mt-4">
+            If the trip you're looking for did not take place in the past 7 days, use the search bar to find it.
+          </Typography>
+        </>
+      )}
 
-              {/* Pickup Location */}
-              {trip.pickup && (
-                <div className="mt-4 p-2 bg-gray-100 rounded">
-                  <div className="flex items-center">
-                    <div>
-                      <p className="font-semibold">
-                        {trip.pickup.name} | {trip.pickup.time}
-                      </p>
-                      <p className="text-gray-600 flex items-center">
-                        <LocationOnIcon
-                          className="text-gray-400 mr-1"
-                          fontSize="small"
-                        />
-                        {trip.pickup.address}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </AccordionDetails>
-          </Accordion>
-        ))}
+      {selectedOrderId === null && (
+        <Typography color="error" className="mt-4">
+          An order is required to proceed.
+        </Typography>
+      )}
+
+      <Button 
+        variant="contained" 
+        color="primary" 
+        className="mt-4"
+        disabled={selectedOrderId === null}
+      >
+        Proceed
+      </Button>
+    </div>
+  );
+};
+
+export default TripSelector;
+
+
+
+
+
+import React from 'react';
+import { Typography } from '@mui/material';
+import TripAccordion from './TripAccordion';
+import { TripData } from '../types';
+
+interface TripGroupProps {
+  title: string;
+  trips: TripData[];
+  onOrderSelect: (orderId: string) => void;
+  selectedOrderId: string | null;
+}
+
+const TripGroup: React.FC<TripGroupProps> = ({ title, trips, onOrderSelect, selectedOrderId }) => {
+  if (trips.length === 0) return null;
+
+  return (
+    <div className="mb-4">
+      <Typography variant="h6" className="mb-2">{title}</Typography>
+      {trips.map((trip, index) => (
+        <TripAccordion 
+          key={trip.tripId} 
+          trip={trip} 
+          onOrderSelect={onOrderSelect}
+          selectedOrderId={selectedOrderId}
+          defaultExpanded={index === 0}
+        />
+      ))}
+    </div>
+  );
+};
+
+export default TripGroup;
+
+
+
+import React from 'react';
+import { Accordion, AccordionSummary, AccordionDetails, Typography } from '@mui/material';
+import { ExpandMore } from '@mui/icons-material';
+import OrderList from './OrderList';
+import PickupLocation from './PickupLocation';
+import { TripData } from '../types';
+
+interface TripAccordionProps {
+  trip: TripData;
+  onOrderSelect: (orderId: string) => void;
+  selectedOrderId: string | null;
+  defaultExpanded: boolean;
+}
+
+const TripAccordion: React.FC<TripAccordionProps> = ({ trip, onOrderSelect, selectedOrderId, defaultExpanded }) => {
+  return (
+    <Accordion defaultExpanded={defaultExpanded}>
+      <AccordionSummary expandIcon={<ExpandMore />}>
+        <div className="flex justify-between w-full">
+          <Typography>
+            Trip #{trip.tripId} | {trip.orders.length} orders | {trip.date}
+          </Typography>
+          <Typography>
+            {trip.timeRange} | {trip.status}
+          </Typography>
+        </div>
+      </AccordionSummary>
+      <AccordionDetails>
+        <PickupLocation location={trip.pickupLocation} />
+        <OrderList 
+          orders={trip.orders} 
+          onOrderSelect={onOrderSelect}
+          selectedOrderId={selectedOrderId}
+        />
+      </AccordionDetails>
+    </Accordion>
+  );
+};
+
+export default TripAccordion;
+
+
+
+import React from 'react';
+import { Radio, Typography } from '@mui/material';
+import { OrderDetail } from '../types';
+
+interface OrderListProps {
+  orders: OrderDetail[];
+  onOrderSelect: (orderId: string) => void;
+  selectedOrderId: string | null;
+}
+
+const OrderList: React.FC<OrderListProps> = ({ orders, onOrderSelect, selectedOrderId }) => {
+  return (
+    <div>
+      {orders.map((order) => (
+        <div key={order.orderId} className="flex items-center mb-2">
+          <Radio
+            checked={selectedOrderId === order.orderId}
+            onChange={() => onOrderSelect(order.orderId)}
+          />
+          <div className="flex-grow">
+            <Typography>
+              {order.customerName} | Order #{order.orderId} | {order.deliveryWindow}
+            </Typography>
+            <Typography variant="body2" color="textSecondary">
+              {order.status}
+            </Typography>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+};
+
+export default OrderList;
+
+
+import React from 'react';
+import { Typography } from '@mui/material';
+import { Store, LocationOn } from '@mui/icons-material';
+import { PickupLocationData } from '../types';
+
+interface PickupLocationProps {
+  location: PickupLocationData;
+}
+
+const PickupLocation: React.FC<PickupLocationProps> = ({ location }) => {
+  return (
+    <div className="mb-4">
+      <div className="flex items-center">
+        <Store className="mr-2" />
+        <Typography>
+          {location.storeName} {location.storeNumber && `#${location.storeNumber}`} | {location.pickupWindow}
+        </Typography>
+      </div>
+      <div className="flex items-start ml-6">
+        <LocationOn className="mr-1 mt-1" />
+        <Typography>
+          {location.address.street}, {location.address.city}, {location.address.state} {location.address.zipCode}
+        </Typography>
       </div>
     </div>
   );
 };
 
-export default DriverOrderSelection;
+export default PickupLocation;
+
+
+
+
+
+export interface OrderDetail {
+  orderId: string;
+  customerName: string;
+  deliveryWindow: string;
+  status: string;
+}
+
+export interface PickupLocationData {
+  storeName: string;
+  storeNumber?: string;
+  pickupWindow: string;
+  address: {
+    street: string;
+    city: string;
+    state: string;
+    zipCode: string;
+  };
+}
+
+export interface TripData {
+  tripId: string;
+  date: string;
+  timeRange: string;
+  status: string;
+  orders: OrderDetail[];
+  pickupLocation: PickupLocationData;
+}
+
+export interface GroupedTrips {
+  today: TripData[];
+  past7Days: TripData[];
+}
+
+
+
+
+import { TripData, GroupedTrips } from './types';
+
+export function groupTripsByDate(trips: TripData[]): GroupedTrips {
+  const today = new Date().toDateString();
+  const sevenDaysAgo = new Date();
+  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+
+  return trips.reduce((acc: GroupedTrips, trip) => {
+    const tripDate = new Date(trip.date);
+    if (tripDate.toDateString() === today) {
+      acc.today.push(trip);
+    } else if (tripDate >= sevenDaysAgo) {
+      acc.past7Days.push(trip);
+    }
+    return acc;
+  }, { today: [], past7Days: [] });
+}
+
+export function searchTrips(trips: TripData[], query: string): TripData[] {
+  const lowercaseQuery = query.toLowerCase();
+  return trips.filter(trip => 
+    trip.tripId.toLowerCase().includes(lowercaseQuery) ||
+    trip.orders.some(order => 
+      order.orderId.toLowerCase().includes(lowercaseQuery) ||
+      order.customerName.toLowerCase().includes(lowercaseQuery)
+    )
+  );
+}
+
+
+import { TripData, GroupedTrips } from './types';
+
+export function groupTripsByDate(trips: TripData[]): GroupedTrips {
+  const today = new Date().toDateString();
+  const sevenDaysAgo = new Date();
+  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+
+  return trips.reduce((acc: GroupedTrips, trip) => {
+    const tripDate = new Date(trip.date);
+    if (tripDate.toDateString() === today) {
+      acc.today.push(trip);
+    } else if (tripDate >= sevenDaysAgo) {
+      acc.past7Days.push(trip);
+    }
+    return acc;
+  }, { today: [], past7Days: [] });
+}
+
+export function searchTrips(trips: TripData[], query: string): TripData[] {
+  const lowercaseQuery = query.toLowerCase();
+  return trips.filter(trip => 
+    trip.tripId.toLowerCase().includes(lowercaseQuery) ||
+    trip.orders.some(order => 
+      order.orderId.toLowerCase().includes(lowercaseQuery) ||
+      order.customerName.toLowerCase().includes(lowercaseQuery)
+    )
+  );
+}
