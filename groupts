@@ -26,3 +26,40 @@ export function searchTrips(trips: TripData[], query: string): TripData[] {
     )
   );
 }
+
+
+
+
+
+import React from 'react';
+import { Typography } from '@mui/material';
+import TripAccordion from './TripAccordion';
+import { TripData } from '../types';
+
+interface TripGroupProps {
+  title: string;
+  trips: TripData[];
+  onOrderSelect: (orderId: string) => void;
+  selectedOrderId: string | null;
+}
+
+const TripGroup: React.FC<TripGroupProps> = ({ title, trips, onOrderSelect, selectedOrderId }) => {
+  if (trips.length === 0) return null;
+
+  return (
+    <div className="mb-4">
+      <Typography variant="h6" className="mb-2">{title}</Typography>
+      {trips.map((trip, index) => (
+        <TripAccordion 
+          key={trip.tripId} 
+          trip={trip} 
+          onOrderSelect={onOrderSelect}
+          selectedOrderId={selectedOrderId}
+          defaultExpanded={index === 0}
+        />
+      ))}
+    </div>
+  );
+};
+
+export default TripGroup;
