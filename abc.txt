@@ -1,52 +1,67 @@
-import React from "react";
-import { render, fireEvent } from "@testing-library/react";
-import DriverAssitance from "./DriverAssitance";
+interface TripResponse {
+  tripList: Trip[];
+}
 
-describe("DriverAssitance Component", () => {
-  const mockActionHandler = jest.fn();
+interface Trip {
+  storeId: string;
+  tripId: string;
+  tripExternalId: string;
+  batchId: string;
+  tripStartDateTime: number;
+  tripEndDateTime: number;
+  totalDeliveryTasks: number;
+  status: string;
+  displayTripId: string;
+  deliveryTasksByTenantId: {
+    [tenantId: string]: DeliveryTask[];
+  };
+}
 
-  afterEach(() => {
-    jest.clearAllMocks();
-  });
+interface DeliveryTask {
+  id: string;
+  storeId: number;
+  orderId: string;
+  ringId: string;
+  customerStartTime: number;
+  customerEndTime: number;
+  actualDeliveryTime: number;
+  transitDeltaTime: number;
+  taskEvents: TaskEvent[];
+  externalStatus: string;
+  serviceProvider: string;
+  serviceType: string;
+  deliveryStatus: string;
+  carrier: string;
+  transitStatus: string;
+  dropoffEta: number;
+  pickupEta: number;
+  customerInfo: CustomerInfo;
+  deliveryType: string;
+  totalPlannedMileage: string;
+  driver: Driver;
+}
 
-  test("renders button with 'Procced' text", () => {
-    const { getByText } = render(
-      <DriverAssitance actionhandler={mockActionHandler} isDisabled={false} />
-    );
-    expect(getByText("Procced")).toBeInTheDocument();
-  });
+interface TaskEvent {
+  eventStatus: string;
+  eventTime: number;
+}
 
-  test("button is disabled when isDisabled is true", () => {
-    const { getByRole } = render(
-      <DriverAssitance actionhandler={mockActionHandler} isDisabled={true} />
-    );
-    const button = getByRole("button");
-    expect(button).toBeDisabled();
-  });
+interface CustomerInfo {
+  customerFirstName: string;
+  customerLastName: string;
+  customerFullName: string;
+  addressLine1: string;
+  addressLine2: string;
+  city: string;
+  state: string;
+  postalCode: string;
+  country: string;
+  primaryPhone: string;
+}
 
-  test("button is enabled when isDisabled is false", () => {
-    const { getByRole } = render(
-      <DriverAssitance actionhandler={mockActionHandler} isDisabled={false} />
-    );
-    const button = getByRole("button");
-    expect(button).toBeEnabled();
-  });
-
-  test("calls actionhandler when button is clicked", () => {
-    const { getByRole } = render(
-      <DriverAssitance actionhandler={mockActionHandler} isDisabled={false} />
-    );
-    const button = getByRole("button");
-    fireEvent.click(button);
-    expect(mockActionHandler).toHaveBeenCalledTimes(1);
-  });
-
-  test("does not call actionhandler when button is disabled", () => {
-    const { getByRole } = render(
-      <DriverAssitance actionhandler={mockActionHandler} isDisabled={true} />
-    );
-    const button = getByRole("button");
-    fireEvent.click(button);
-    expect(mockActionHandler).not.toHaveBeenCalled();
-  });
-});
+interface Driver {
+  driverUserId: string;
+  firstName: string;
+  lastName: string;
+  phoneNumber: string;
+}
