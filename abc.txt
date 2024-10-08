@@ -1,67 +1,100 @@
-interface TripResponse {
-  tripList: Trip[];
-}
+import React, { useState, useMemo } from 'react';
+import { 
+  Accordion, AccordionSummary, AccordionDetails, 
+  Typography, Pagination, Button 
+} from '@mui/material';
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 
-interface Trip {
-  storeId: string;
-  tripId: string;
-  tripExternalId: string;
-  batchId: string;
-  tripStartDateTime: number;
-  tripEndDateTime: number;
-  totalDeliveryTasks: number;
-  status: string;
-  displayTripId: string;
-  deliveryTasksByTenantId: {
-    [tenantId: string]: DeliveryTask[];
+const TripList = ({ trips }) => {
+  const [page, setPage] = useState(1);
+  const [expandedTrip, setExpandedTrip] = useState(null);
+  const tripsPerPage = 5;
+
+  // Separate today's trips from past trips
+  const today = new Date().toDateString();
+  const allTodayTrips = trips.filter(trip => new Date(trip.date).toDateString() === today);
+  const allPastTrips = trips.filter(trip => new Date(trip.date).toDateString() !== today);
+
+  // Pagination logic
+  const { todayTrips, pastTrips, totalPages } = useMemo(() => {
+    const startIndex = (page - 1) * tripsPerPage;
+    const endIndex = startIndex + tripsPerPage;
+
+    let todayTripsOnPage = [];
+    let pastTripsOnPage = [];
+
+    if (startIndex < allTodayTrips.length) {
+      todayTripsOnPage = allTodayTrips.slice(startIndex, Math.min(endIndex, allTodayTrips.length));
+      if (todayTripsOnPage.length < tripsPerPage) {
+        pastTripsOnPage = allPastTrips.slice(0, tripsPerPage - todayTripsOnPage.length);
+      }
+    } else {
+      const pastStartIndex = startIndex - allTodayTrips.length;
+      pastTripsOnPage = allPastTrips.slice(pastStartIndex, pastStartIndex + tripsPerPage);
+    }
+
+    return {
+      todayTrips: todayTripsOnPage,
+      pastTrips: pastTripsOnPage,
+      totalPages: Math.ceil((allTodayTrips.length + allPastTrips.length) / tripsPerPage)
+    };
+  }, [trips, page]);
+
+  const handlePageChange = (event, value) => {
+    setPage(value);
+    setExpandedTrip(null); // Close any expanded trip when changing pages
   };
-}
 
-interface DeliveryTask {
-  id: string;
-  storeId: number;
-  orderId: string;
-  ringId: string;
-  customerStartTime: number;
-  customerEndTime: number;
-  actualDeliveryTime: number;
-  transitDeltaTime: number;
-  taskEvents: TaskEvent[];
-  externalStatus: string;
-  serviceProvider: string;
-  serviceType: string;
-  deliveryStatus: string;
-  carrier: string;
-  transitStatus: string;
-  dropoffEta: number;
-  pickupEta: number;
-  customerInfo: CustomerInfo;
-  deliveryType: string;
-  totalPlannedMileage: string;
-  driver: Driver;
-}
+  return (
+    <div className="p-4">
+      {todayTrips.length > 0 && (
+        <>
+          <Typography variant="h6" className="mb-4">Today</Typography>
+          {todayTrips.map((trip) => (
+            <TripAccordion key={trip.id} trip={trip} expandedTrip={expandedTrip} setExpandedTrip={setExpandedTrip} />
+          ))}
+        </>
+      )}
+      
+      {pastTrips.length > 0 && (
+        <>
+          <Typography variant="h6" className="mt-6 mb-4">Past 7 days</Typography>
+          {pastTrips.map((trip) => (
+            <TripAccordion key={trip.id} trip={trip} expandedTrip={expandedTrip} setExpandedTrip={setExpandedTrip} />
+          ))}
+        </>
+      )}
+      
+      <div className="flex justify-center mt-4">
+        <Pagination 
+          count={totalPages}
+          page={page} 
+          onChange={handlePageChange}
+        />
+      </div>
+      
+      {page === totalPages && (
+        <div className="mt-4 text-center">
+          <Typography variant="body2">
+            If the trip you're looking for did not take place in the past 7 days, use the search bar to find it.
+          </Typography>
+        </div>
+      )}
+      
+      <div className="mt-4 text-center">
+        <Button variant="contained" color="primary" onClick={() => {
+          if (!expandedTrip) {
+            alert("A trip is required to proceed");
+          } else {
+            // Proceed with the selected trip
+            console.log("Proceeding with trip:", expandedTrip);
+          }
+        }}>
+          Proceed
+        </Button>
+      </div>
+    </div>
+  );
+};
 
-interface TaskEvent {
-  eventStatus: string;
-  eventTime: number;
-}
-
-interface CustomerInfo {
-  customerFirstName: string;
-  customerLastName: string;
-  customerFullName: string;
-  addressLine1: string;
-  addressLine2: string;
-  city: string;
-  state: string;
-  postalCode: string;
-  country: string;
-  primaryPhone: string;
-}
-
-interface Driver {
-  driverUserId: string;
-  firstName: string;
-  lastName: string;
-  phoneNumber: string;
-}
+// ... TripAccordion component remains the same
