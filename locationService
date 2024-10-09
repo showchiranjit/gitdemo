@@ -156,4 +156,111 @@ function MapComponent({ driverLocation, pickupLocation }) {
 }
 
 
+
+
+
+import React, { useState, useCallback, useEffect } from "react";
+import {
+  GoogleMap,
+  useJsApiLoader,
+  Marker,
+  Circle,
+  DirectionsRenderer,
+} from "@react-google-maps/api";
+
+const center = { lat: 40.7128, lng: -74.006 }; // New York City
+const geofenceRadius = 5000; // 5km radius
+
+function  App() {
+  const { isLoaded } = useJsApiLoader({
+    id: "google-map-script",
+    googleMapsApiKey: "YOUR_API_KEY_HERE",
+  });
+
+  const [map, setMap] = useState(null);
+  const [driverPosition, setDriverPosition] = useState(center);
+  const [pickupPosition, setPickupPosition] = useState({
+    lat: 40.7282,
+    lng: -73.7949,
+  }); // Example: JFK Airport
+  const [directions, setDirections] = useState(null);
+  const [isWithinGeofence, setIsWithinGeofence] = useState(false);
+
+  const onLoad = useCallback(function callback(map) {
+    setMap(map);
+  }, []);
+
+  const onUnmount = useCallback(function callback(map) {
+    setMap(null);
+  }, []);
+
+  useEffect(() => {
+    if (isLoaded) {
+      const directionsService = new google.maps.DirectionsService();
+      directionsService.route(
+        {
+          origin: driverPosition,
+          destination: pickupPosition,
+          travelMode: google.maps.TravelMode.DRIVING,
+        },
+        (result, status) => {
+          if (status === google.maps.DirectionsStatus.OK) {
+            setDirections(result);
+          }
+        }
+      );
+
+      // Check if driver is within geofence
+      const distance = google.maps.geometry.spherical.computeDistanceBetween(
+        new google.maps.LatLng(driverPosition),
+        new google.maps.LatLng(center)
+      );
+      setIsWithinGeofence(distance <= geofenceRadius);
+    }
+  }, [isLoaded, driverPosition, pickupPosition]);
+
+  // Simulating driver movement (replace with actual API polling)
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setDriverPosition((prevPos) => ({
+        lat: prevPos.lat + (Math.random() - 0.5) * 0.01,
+        lng: prevPos.lng + (Math.random() - 0.5) * 0.01,
+      }));
+    }, 5000);
+
+    return () => clearInterval(interval);
+  }, []);
+
+  return isLoaded ? (
+    <GoogleMap
+      mapContainerStyle={{ width: "100%", height: "400px" }}
+      center={center}
+      zoom={10}
+      onLoad={onLoad}
+      onUnmount={onUnmount}
+    >
+      <Marker position={driverPosition} icon="path/to/car-icon.png" />
+      <Marker position={pickupPosition} />
+      <Circle
+        center={center}
+        radius={geofenceRadius}
+        options={{
+          fillColor: isWithinGeofence ? "green" : "red",
+          fillOpacity: 0.3,
+          strokeColor: isWithinGeofence ? "green" : "red",
+          strokeOpacity: 0.8,
+          strokeWeight: 2,
+        }}
+      />
+      {directions && <DirectionsRenderer directions={directions} />}
+    </GoogleMap>
+  ) : (
+    <></>
+  );
+}
+
+export default App;
+
+
+
  
