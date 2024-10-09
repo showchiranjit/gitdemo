@@ -1,0 +1,109 @@
+npm install @react-google-maps/api
+
+2. Marker component 
+You can display both the pickup location marker and the driver (car/vehicle) marker using the Marker component.
+
+
+
+
+import { GoogleMap, Marker, LoadScript } from "@react-google-maps/api";
+
+const mapContainerStyle = {
+  width: "100%",
+  height: "400px",
+};
+
+const center = { lat: 40.748817, lng: -73.985428 }; // Example center
+
+function MapComponent() {
+  return (
+    <LoadScript googleMapsApiKey="YOUR_API_KEY">
+      <GoogleMap
+        mapContainerStyle={mapContainerStyle}
+        center={center}
+        zoom={12}
+      >
+        {/* Pickup Marker */}
+        <Marker position={pickupLocation} />
+
+        {/* Driver Marker */}
+        <Marker position={driverLocation} icon="car_icon_url" />
+      </GoogleMap>
+    </LoadScript>
+  );
+}
+
+
+2.  Geofencing:
+
+You can use the Circle component to create the geofence.
+
+
+	import { Circle } from "@react-google-maps/api";
+
+const radius = 1000; // Example radius in meters
+const geofenceColor = insideGeofence ? "green" : "red";
+
+<Circle
+  center={geofenceCenter}
+  radius={radius}
+  options={{
+    fillColor: geofenceColor,
+    fillOpacity: 0.2,
+    strokeColor: geofenceColor,
+    strokeOpacity: 0.5,
+    strokeWeight: 1,
+  }}
+/>;
+
+
+Path Between Two Locations:
+
+You can use the DirectionsService and DirectionsRenderer to draw a path between two locations.
+
+
+ import { DirectionsService, DirectionsRenderer } from "@react-google-maps/api";
+
+function MapWithDirections() {
+  const [directions, setDirections] = useState(null);
+
+  const origin = pickupLocation;
+  const destination = driverLocation;
+
+  return (
+    <GoogleMap ...>
+      <DirectionsService
+        options={{
+          origin,
+          destination,
+          travelMode: "DRIVING",
+        }}
+        callback={(result, status) => {
+          if (status === "OK") {
+            setDirections(result);
+          }
+        }}
+      />
+      {directions && <DirectionsRenderer directions={directions} />}
+    </GoogleMap>
+  );
+}
+
+
+useEffect(() => {
+  const interval = setInterval(() => {
+    fetchUpdatedLocation().then(newLocation => {
+      setDriverLocation(newLocation);
+    });
+  }, 5000); // Poll every 5 seconds
+
+  return () => clearInterval(interval);
+}, []);
+
+
+
+
+
+
+
+ 
