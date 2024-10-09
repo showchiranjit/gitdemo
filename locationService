@@ -1,188 +1,19 @@
-npm install @react-google-maps/api
+import React, { useState, useCallback, useEffect } from 'react';
+import { GoogleMap, useJsApiLoader, Marker, Circle, DirectionsRenderer } from '@react-google-maps/api';
 
-2. Marker component 
-You can display both the pickup location marker and the driver (car/vehicle) marker using the Marker component.
-
-
-
-
-import { GoogleMap, Marker, LoadScript } from "@react-google-maps/api";
-
-const mapContainerStyle = {
-  width: "100%",
-  height: "400px",
-};
-
-const center = { lat: 40.748817, lng: -73.985428 }; // Example center
-
-function MapComponent() {
-  return (
-    <LoadScript googleMapsApiKey="YOUR_API_KEY">
-      <GoogleMap
-        mapContainerStyle={mapContainerStyle}
-        center={center}
-        zoom={12}
-      >
-        {/* Pickup Marker */}
-        <Marker position={pickupLocation} />
-
-        {/* Driver Marker */}
-        <Marker position={driverLocation} icon="car_icon_url" />
-      </GoogleMap>
-    </LoadScript>
-  );
-}
-
-
-2.  Geofencing:
-
-You can use the Circle component to create the geofence.
-
-
-	import { Circle } from "@react-google-maps/api";
-
-const radius = 1000; // Example radius in meters
-const geofenceColor = insideGeofence ? "green" : "red";
-
-<Circle
-  center={geofenceCenter}
-  radius={radius}
-  options={{
-    fillColor: geofenceColor,
-    fillOpacity: 0.2,
-    strokeColor: geofenceColor,
-    strokeOpacity: 0.5,
-    strokeWeight: 1,
-  }}
-/>;
-
-
-Path Between Two Locations:
-
-You can use the DirectionsService and DirectionsRenderer to draw a path between two locations.
-
-
- import { DirectionsService, DirectionsRenderer } from "@react-google-maps/api";
-
-function MapWithDirections() {
-  const [directions, setDirections] = useState(null);
-
-  const origin = pickupLocation;
-  const destination = driverLocation;
-
-  return (
-    <GoogleMap ...>
-      <DirectionsService
-        options={{
-          origin,
-          destination,
-          travelMode: "DRIVING",
-        }}
-        callback={(result, status) => {
-          if (status === "OK") {
-            setDirections(result);
-          }
-        }}
-      />
-      {directions && <DirectionsRenderer directions={directions} />}
-    </GoogleMap>
-  );
-}
-
-
-useEffect(() => {
-  const interval = setInterval(() => {
-    fetchUpdatedLocation().then(newLocation => {
-      setDriverLocation(newLocation);
-    });
-  }, 5000); // Poll every 5 seconds
-
-  return () => clearInterval(interval);
-}, []);
-
-
-
-
-
-import { GoogleMap, Marker, LoadScript, Circle } from "@react-google-maps/api";
-
-// Set center for geofencing (e.g., pickup location)
-const geofenceCenter = { lat: 40.748817, lng: -73.985428 }; // Example coordinates
-const radius = 1000; // Geofence radius in meters
-
-function calculateDistanceBetweenPoints(point1, point2) {
-  const google = window.google; // Access the Google Maps object
-  return google.maps.geometry.spherical.computeDistanceBetween(
-    new google.maps.LatLng(point1.lat, point1.lng),
-    new google.maps.LatLng(point2.lat, point2.lng)
-  );
-}
-
-function MapComponent({ driverLocation, pickupLocation }) {
-  // Check if driver is within geofence radius
-  const insideGeofence = calculateDistanceBetweenPoints(driverLocation, geofenceCenter) <= radius;
-
-  // Change color based on driver's location relative to geofence
-  const geofenceColor = insideGeofence ? "green" : "red";
-
-  return (
-    <LoadScript googleMapsApiKey="YOUR_API_KEY">
-      <GoogleMap
-        mapContainerStyle={{ width: "100%", height: "400px" }}
-        center={geofenceCenter}
-        zoom={12}
-      >
-        {/* Pickup Marker */}
-        <Marker position={pickupLocation} />
-
-        {/* Driver Marker */}
-        <Marker position={driverLocation} icon="car_icon_url" />
-
-        {/* Geofence Circle */}
-        <Circle
-          center={geofenceCenter}
-          radius={radius}
-          options={{
-            fillColor: geofenceColor,
-            fillOpacity: 0.2,
-            strokeColor: geofenceColor,
-            strokeOpacity: 0.5,
-            strokeWeight: 1,
-          }}
-        />
-      </GoogleMap>
-    </LoadScript>
-  );
-}
-
-
-
-
-
-import React, { useState, useCallback, useEffect } from "react";
-import {
-  GoogleMap,
-  useJsApiLoader,
-  Marker,
-  Circle,
-  DirectionsRenderer,
-} from "@react-google-maps/api";
-
-const center = { lat: 40.7128, lng: -74.006 }; // New York City
+const center = { lat: 40.7128, lng: -74.0060 }; // New York City
 const geofenceRadius = 5000; // 5km radius
 
-function  App() {
-  const { isLoaded } = useJsApiLoader({
-    id: "google-map-script",
+function App() {
+  const { isLoaded, loadError } = useJsApiLoader({
+    id: 'google-map-script',
     googleMapsApiKey: "YOUR_API_KEY_HERE",
+    libraries: ["geometry", "places"]
   });
 
   const [map, setMap] = useState(null);
   const [driverPosition, setDriverPosition] = useState(center);
-  const [pickupPosition, setPickupPosition] = useState({
-    lat: 40.7282,
-    lng: -73.7949,
-  }); // Example: JFK Airport
+  const [pickupPosition, setPickupPosition] = useState({ lat: 40.7282, lng: -73.7949 }); // Example: JFK Airport
   const [directions, setDirections] = useState(null);
   const [isWithinGeofence, setIsWithinGeofence] = useState(false);
 
@@ -195,25 +26,25 @@ function  App() {
   }, []);
 
   useEffect(() => {
-    if (isLoaded) {
-      const directionsService = new google.maps.DirectionsService();
+    if (isLoaded && window.google) {
+      const directionsService = new window.google.maps.DirectionsService();
       directionsService.route(
         {
           origin: driverPosition,
           destination: pickupPosition,
-          travelMode: google.maps.TravelMode.DRIVING,
+          travelMode: window.google.maps.TravelMode.DRIVING,
         },
         (result, status) => {
-          if (status === google.maps.DirectionsStatus.OK) {
+          if (status === window.google.maps.DirectionsStatus.OK) {
             setDirections(result);
           }
         }
       );
 
       // Check if driver is within geofence
-      const distance = google.maps.geometry.spherical.computeDistanceBetween(
-        new google.maps.LatLng(driverPosition),
-        new google.maps.LatLng(center)
+      const distance = window.google.maps.geometry.spherical.computeDistanceBetween(
+        new window.google.maps.LatLng(driverPosition),
+        new window.google.maps.LatLng(center)
       );
       setIsWithinGeofence(distance <= geofenceRadius);
     }
@@ -222,7 +53,7 @@ function  App() {
   // Simulating driver movement (replace with actual API polling)
   useEffect(() => {
     const interval = setInterval(() => {
-      setDriverPosition((prevPos) => ({
+      setDriverPosition(prevPos => ({
         lat: prevPos.lat + (Math.random() - 0.5) * 0.01,
         lng: prevPos.lng + (Math.random() - 0.5) * 0.01,
       }));
@@ -231,9 +62,13 @@ function  App() {
     return () => clearInterval(interval);
   }, []);
 
+  if (loadError) {
+    return <div>Map cannot be loaded right now, sorry.</div>
+  }
+
   return isLoaded ? (
     <GoogleMap
-      mapContainerStyle={{ width: "100%", height: "400px" }}
+      mapContainerStyle={{ width: '100%', height: '400px' }}
       center={center}
       zoom={10}
       onLoad={onLoad}
@@ -245,22 +80,16 @@ function  App() {
         center={center}
         radius={geofenceRadius}
         options={{
-          fillColor: isWithinGeofence ? "green" : "red",
+          fillColor: isWithinGeofence ? 'green' : 'red',
           fillOpacity: 0.3,
-          strokeColor: isWithinGeofence ? "green" : "red",
+          strokeColor: isWithinGeofence ? 'green' : 'red',
           strokeOpacity: 0.8,
           strokeWeight: 2,
         }}
       />
       {directions && <DirectionsRenderer directions={directions} />}
     </GoogleMap>
-  ) : (
-    <></>
-  );
+  ) : <div>Loading...</div>
 }
 
 export default App;
-
-
-
- 
