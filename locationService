@@ -175,3 +175,41 @@ const createSimpleRoute = (start, end, steps = 10) => {
 
 // Usage
 const route = createSimpleRoute(pickupLocation, deliveryLocation);
+
+
+
+import React from 'react';
+import DriverLocationMap from './DriverLocationMap';
+
+const MapContainer = () => {
+  // Driver's current location (blue marker on the map)
+  const currentDriverLocation = { lat: 30.2165, lng: -92.0208 };
+
+  // Pickup location (assuming it's where the route starts)
+  const pickupCoordinates = { lat: 30.2148, lng: -92.0230 };
+
+  // Delivery location (assuming it's where the route ends)
+  const deliveryCoordinates = { lat: 30.2240, lng: -92.0086 };
+
+  // Simple route between pickup and delivery
+  const route = [
+    pickupCoordinates,
+    { lat: 30.2156, lng: -92.0220 },
+    { lat: 30.2165, lng: -92.0208 }, // Driver's current location
+    { lat: 30.2180, lng: -92.0180 },
+    { lat: 30.2200, lng: -92.0150 },
+    { lat: 30.2220, lng: -92.0120 },
+    deliveryCoordinates
+  ];
+
+  return (
+    <DriverLocationMap
+      driverLocation={currentDriverLocation}
+      pickupLocation={pickupCoordinates}
+      deliveryLocation={deliveryCoordinates}
+      route={route}
+    />
+  );
+};
+
+export default MapContainer;
