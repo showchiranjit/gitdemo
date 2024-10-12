@@ -1,117 +1,19 @@
-import React, { useState, useCallback, useEffect } from 'react';
-import { GoogleMap, useJsApiLoader, Marker, Circle, DirectionsRenderer } from '@react-google-maps/api';
-
-const center = { lat: 40.7128, lng: -74.0060 }; // New York City
-const geofenceRadius = 5000; // 5km radius
-
-function App() {
-  const { isLoaded, loadError } = useJsApiLoader({
-    id: 'google-map-script',
-    googleMapsApiKey: "YOUR_API_KEY_HERE",
-    libraries: ["geometry", "places"]
-  });
-
-  const [map, setMap] = useState(null);
-  const [driverPosition, setDriverPosition] = useState(center);
-  const [pickupPosition, setPickupPosition] = useState({ lat: 40.7282, lng: -73.7949 }); // Example: JFK Airport
-  const [directions, setDirections] = useState(null);
-  const [isWithinGeofence, setIsWithinGeofence] = useState(false);
-
-  const onLoad = useCallback(function callback(map) {
-    setMap(map);
-  }, []);
-
-  const onUnmount = useCallback(function callback(map) {
-    setMap(null);
-  }, []);
-
-  useEffect(() => {
-    if (isLoaded && window.google) {
-      const directionsService = new window.google.maps.DirectionsService();
-      directionsService.route(
-        {
-          origin: driverPosition,
-          destination: pickupPosition,
-          travelMode: window.google.maps.TravelMode.DRIVING,
-        },
-        (result, status) => {
-          if (status === window.google.maps.DirectionsStatus.OK) {
-            setDirections(result);
-          }
-        }
-      );
-
-      // Check if driver is within geofence
-      const distance = window.google.maps.geometry.spherical.computeDistanceBetween(
-        new window.google.maps.LatLng(driverPosition),
-        new window.google.maps.LatLng(center)
-      );
-      setIsWithinGeofence(distance <= geofenceRadius);
-    }
-  }, [isLoaded, driverPosition, pickupPosition]);
-
-  // Simulating driver movement (replace with actual API polling)
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setDriverPosition(prevPos => ({
-        lat: prevPos.lat + (Math.random() - 0.5) * 0.01,
-        lng: prevPos.lng + (Math.random() - 0.5) * 0.01,
-      }));
-    }, 5000);
-
-    return () => clearInterval(interval);
-  }, []);
-
-  if (loadError) {
-    return <div>Map cannot be loaded right now, sorry.</div>
-  }
-
-  return isLoaded ? (
-    <GoogleMap
-      mapContainerStyle={{ width: '100%', height: '400px' }}
-      center={center}
-      zoom={10}
-      onLoad={onLoad}
-      onUnmount={onUnmount}
-    >
-      <Marker position={driverPosition} icon="path/to/car-icon.png" />
-      <Marker position={pickupPosition} />
-      <Circle
-        center={center}
-        radius={geofenceRadius}
-        options={{
-          fillColor: isWithinGeofence ? 'green' : 'red',
-          fillOpacity: 0.3,
-          strokeColor: isWithinGeofence ? 'green' : 'red',
-          strokeOpacity: 0.8,
-          strokeWeight: 2,
-        }}
-      />
-      {directions && <DirectionsRenderer directions={directions} />}
-    </GoogleMap>
-  ) : <div>Loading...</div>
-}
-
-export default App;
-
-
-
-
-
-
-
-
 import React, { useState, useEffect, useCallback } from 'react';
 import { GoogleMap, useJsApiLoader, Marker, Circle, Polyline } from '@react-google-maps/api';
+
+const GEOFENCE_RADIUS = 500; // 500 meters
 
 const DriverLocationMap = ({ driverLocation, pickupLocation, deliveryLocation, route }) => {
   const { isLoaded } = useJsApiLoader({
     id: 'google-map-script',
-    googleMapsApiKey: 'YOUR_API_KEY_HERE'
+    googleMapsApiKey: 'YOUR_API_KEY_HERE',
+    libraries: ['geometry']
   });
 
   const [map, setMap] = useState(null);
   const [lastUpdated, setLastUpdated] = useState(new Date());
+  const [isDriverInPickupZone, setIsDriverInPickupZone] = useState(false);
+  const [isDriverInDeliveryZone, setIsDriverInDeliveryZone] = useState(false);
 
   const onLoad = useCallback((map) => {
     const bounds = new window.google.maps.LatLngBounds();
@@ -123,17 +25,49 @@ const DriverLocationMap = ({ driverLocation, pickupLocation, deliveryLocation, r
   }, [driverLocation, pickupLocation, deliveryLocation]);
 
   useEffect(() => {
-    const interval = setInterval(() => {
-      // Fetch updated driver location here
-      setLastUpdated(new Date());
-    }, 30000); // Update every 30 seconds
+    if (isLoaded) {
+      const checkDriverZone = () => {
+        const distanceToPickup = window.google.maps.geometry.spherical.computeDistanceBetween(
+          new window.google.maps.LatLng(driverLocation.lat, driverLocation.lng),
+          new window.google.maps.LatLng(pickupLocation.lat, pickupLocation.lng)
+        );
+        const distanceToDelivery = window.google.maps.geometry.spherical.computeDistanceBetween(
+          new window.google.maps.LatLng(driverLocation.lat, driverLocation.lng),
+          new window.google.maps.LatLng(deliveryLocation.lat, deliveryLocation.lng)
+        );
 
-    return () => clearInterval(interval);
-  }, []);
+        setIsDriverInPickupZone(distanceToPickup <= GEOFENCE_RADIUS);
+        setIsDriverInDeliveryZone(distanceToDelivery <= GEOFENCE_RADIUS);
+      };
+
+      checkDriverZone();
+      const interval = setInterval(() => {
+        // Fetch updated driver location here
+        checkDriverZone();
+        setLastUpdated(new Date());
+      }, 30000); // Update every 30 seconds
+
+      return () => clearInterval(interval);
+    }
+  }, [isLoaded, driverLocation, pickupLocation, deliveryLocation]);
 
   const refreshMap = () => {
     // Fetch updated data and refresh map
     setLastUpdated(new Date());
+    // Re-check driver zone after refresh
+    if (isLoaded) {
+      const distanceToPickup = window.google.maps.geometry.spherical.computeDistanceBetween(
+        new window.google.maps.LatLng(driverLocation.lat, driverLocation.lng),
+        new window.google.maps.LatLng(pickupLocation.lat, pickupLocation.lng)
+      );
+      const distanceToDelivery = window.google.maps.geometry.spherical.computeDistanceBetween(
+        new window.google.maps.LatLng(driverLocation.lat, driverLocation.lng),
+        new window.google.maps.LatLng(deliveryLocation.lat, deliveryLocation.lng)
+      );
+
+      setIsDriverInPickupZone(distanceToPickup <= GEOFENCE_RADIUS);
+      setIsDriverInDeliveryZone(distanceToDelivery <= GEOFENCE_RADIUS);
+    }
   };
 
   if (!isLoaded) return <div>Loading...</div>;
@@ -162,7 +96,7 @@ const DriverLocationMap = ({ driverLocation, pickupLocation, deliveryLocation, r
         {/* Geofencing Circles */}
         <Circle
           center={pickupLocation}
-          radius={500}
+          radius={GEOFENCE_RADIUS}
           options={{
             fillColor: isDriverInPickupZone ? 'green' : 'red',
             fillOpacity: 0.2,
@@ -173,7 +107,7 @@ const DriverLocationMap = ({ driverLocation, pickupLocation, deliveryLocation, r
         />
         <Circle
           center={deliveryLocation}
-          radius={500}
+          radius={GEOFENCE_RADIUS}
           options={{
             fillColor: isDriverInDeliveryZone ? 'green' : 'red',
             fillOpacity: 0.2,
@@ -211,3 +145,33 @@ const DriverLocationMap = ({ driverLocation, pickupLocation, deliveryLocation, r
 };
 
 export default DriverLocationMap;
+
+
+
+const route = [
+  { lat: 30.224090, lng: -92.019843 }, // Starting point (e.g., pickup location)
+  { lat: 30.223756, lng: -92.018684 },
+  { lat: 30.223422, lng: -92.017525 },
+  { lat: 30.223088, lng: -92.016366 },
+  { lat: 30.222754, lng: -92.015207 },
+  { lat: 30.222420, lng: -92.014048 },
+  { lat: 30.222086, lng: -92.012889 },
+  { lat: 30.221752, lng: -92.011730 },
+  { lat: 30.221418, lng: -92.010571 },
+  { lat: 30.221084, lng: -92.009412 }, // Ending point (e.g., delivery location)
+];
+
+
+
+const createSimpleRoute = (start, end, steps = 10) => {
+  const route = [];
+  for (let i = 0; i <= steps; i++) {
+    const lat = start.lat + (end.lat - start.lat) * (i / steps);
+    const lng = start.lng + (end.lng - start.lng) * (i / steps);
+    route.push({ lat, lng });
+  }
+  return route;
+};
+
+// Usage
+const route = createSimpleRoute(pickupLocation, deliveryLocation);
