@@ -93,3 +93,121 @@ function App() {
 }
 
 export default App;
+
+
+
+
+
+
+
+
+import React, { useState, useEffect, useCallback } from 'react';
+import { GoogleMap, useJsApiLoader, Marker, Circle, Polyline } from '@react-google-maps/api';
+
+const DriverLocationMap = ({ driverLocation, pickupLocation, deliveryLocation, route }) => {
+  const { isLoaded } = useJsApiLoader({
+    id: 'google-map-script',
+    googleMapsApiKey: 'YOUR_API_KEY_HERE'
+  });
+
+  const [map, setMap] = useState(null);
+  const [lastUpdated, setLastUpdated] = useState(new Date());
+
+  const onLoad = useCallback((map) => {
+    const bounds = new window.google.maps.LatLngBounds();
+    bounds.extend(driverLocation);
+    bounds.extend(pickupLocation);
+    bounds.extend(deliveryLocation);
+    map.fitBounds(bounds);
+    setMap(map);
+  }, [driverLocation, pickupLocation, deliveryLocation]);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      // Fetch updated driver location here
+      setLastUpdated(new Date());
+    }, 30000); // Update every 30 seconds
+
+    return () => clearInterval(interval);
+  }, []);
+
+  const refreshMap = () => {
+    // Fetch updated data and refresh map
+    setLastUpdated(new Date());
+  };
+
+  if (!isLoaded) return <div>Loading...</div>;
+
+  return (
+    <div className="relative w-full h-[600px]">
+      <GoogleMap
+        mapContainerClassName="w-full h-full"
+        center={driverLocation}
+        zoom={12}
+        onLoad={onLoad}
+      >
+        {/* Driver Marker */}
+        <Marker
+          position={driverLocation}
+          icon={{
+            url: '/car-icon.png',
+            scaledSize: new window.google.maps.Size(40, 40)
+          }}
+        />
+
+        {/* Pickup and Delivery Markers */}
+        <Marker position={pickupLocation} icon={{ url: '/pickup-icon.png' }} />
+        <Marker position={deliveryLocation} icon={{ url: '/delivery-icon.png' }} />
+
+        {/* Geofencing Circles */}
+        <Circle
+          center={pickupLocation}
+          radius={500}
+          options={{
+            fillColor: isDriverInPickupZone ? 'green' : 'red',
+            fillOpacity: 0.2,
+            strokeColor: isDriverInPickupZone ? 'green' : 'red',
+            strokeOpacity: 0.8,
+            strokeWeight: 2,
+          }}
+        />
+        <Circle
+          center={deliveryLocation}
+          radius={500}
+          options={{
+            fillColor: isDriverInDeliveryZone ? 'green' : 'red',
+            fillOpacity: 0.2,
+            strokeColor: isDriverInDeliveryZone ? 'green' : 'red',
+            strokeOpacity: 0.8,
+            strokeWeight: 2,
+          }}
+        />
+
+        {/* Driver's Route */}
+        <Polyline
+          path={route}
+          options={{
+            strokeColor: '#0000FF',
+            strokeOpacity: 0.8,
+            strokeWeight: 2,
+          }}
+        />
+      </GoogleMap>
+
+      {/* Refresh Button and Last Updated Time */}
+      <div className="absolute bottom-4 left-4 bg-white p-2 rounded shadow">
+        <button
+          onClick={refreshMap}
+          className="bg-blue-500 text-white px-4 py-2 rounded mr-2"
+        >
+          Refresh Map
+        </button>
+        <span className="text-sm text-gray-600">
+          Last updated: {lastUpdated.toLocaleTimeString()}
+        </span>
+      </div>
+    </div>
+  );
+};
+
+export default DriverLocationMap;
