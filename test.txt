@@ -1,344 +1,162 @@
-import React, { useState, useEffect } from 'react';
-import { TextField, InputAdornment, Button, Typography } from '@mui/material';
-import { Search } from '@mui/icons-material';
-import TripGroup from './TripGroup';
-import { TripData, GroupedTrips } from '../types';
-import { groupTripsByDate, searchTrips } from '../utils';
 
-interface TripSelectorProps {
-  trips: TripData[];
-  onOrderSelect: (orderId: string) => void;
-}
 
-const TripSelector: React.FC<TripSelectorProps> = ({ trips, onOrderSelect }) => {
-  const [searchQuery, setSearchQuery] = useState<string>('');
-  const [groupedTrips, setGroupedTrips] = useState<GroupedTrips>({ today: [], past7Days: [] });
-  const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
-  const [page, setPage] = useState(1);
-  const tripsPerPage = 10;
 
-  useEffect(() => {
-    setGroupedTrips(groupTripsByDate(trips));
-  }, [trips]);
+import moment from "moment";
 
-  const handleSearch = () => {
-    const searchResults = searchTrips(trips, searchQuery);
-    setGroupedTrips(groupTripsByDate(searchResults));
-    setPage(1);
-  };
-
-  const handleOrderSelect = (orderId: string) => {
-    setSelectedOrderId(orderId);
-    onOrderSelect(orderId);
-  };
-
-  const paginatedTrips = [...groupedTrips.today, ...groupedTrips.past7Days].slice(0, page * tripsPerPage);
-
-  return (
-    <div className="max-w-4xl mx-auto p-4">
-      <h1 className="text-2xl font-semibold mb-4">Select the order the driver needs help with</h1>
-      <div className="flex mb-4">
-        <TextField
-          fullWidth
-          variant="outlined"
-          placeholder="Search by trip #, order #, or customer name"
-          value={searchQuery}
-          onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearchQuery(e.target.value)}
-          InputProps={{
-            startAdornment: (
-              <InputAdornment position="start">
-                <Search />
-              </InputAdornment>
-            ),
-          }}
-        />
-        <Button variant="outlined" className="ml-2" onClick={handleSearch}>
-          Search
-        </Button>
-      </div>
-
-      {paginatedTrips.length === 0 ? (
-        <Typography>
-          The driver hasn't completed a trip in the last 7 days. If the trip you're looking for is older than that, use the search bar to find it.
-        </Typography>
-      ) : (
-        <>
-          <TripGroup title="Today" trips={groupedTrips.today} onOrderSelect={handleOrderSelect} selectedOrderId={selectedOrderId} />
-          <TripGroup title="Past 7 days" trips={groupedTrips.past7Days} onOrderSelect={handleOrderSelect} selectedOrderId={selectedOrderId} />
-          
-          {paginatedTrips.length < groupedTrips.today.length + groupedTrips.past7Days.length && (
-            <Button onClick={() => setPage(page + 1)}>Load More</Button>
-          )}
-          
-          <Typography className="mt-4">
-            If the trip you're looking for did not take place in the past 7 days, use the search bar to find it.
-          </Typography>
-        </>
-      )}
-
-      {selectedOrderId === null && (
-        <Typography color="error" className="mt-4">
-          An order is required to proceed.
-        </Typography>
-      )}
-
-      <Button 
-        variant="contained" 
-        color="primary" 
-        className="mt-4"
-        disabled={selectedOrderId === null}
-      >
-        Proceed
-      </Button>
-    </div>
-  );
+export const sortTripsByStartDateTime = (trips) => {
+  return [...trips].sort((a, b) => {
+    const dateA = moment(a.tripStartDateTime);
+    const dateB = moment(b.tripStartDateTime);
+    return dateB.diff(dateA);
+  });
 };
 
-export default TripSelector;
-
-
-
-
-
-import React from 'react';
-import { Typography } from '@mui/material';
-import TripAccordion from './TripAccordion';
-import { TripData } from '../types';
-
-interface TripGroupProps {
-  title: string;
-  trips: TripData[];
-  onOrderSelect: (orderId: string) => void;
-  selectedOrderId: string | null;
-}
-
-const TripGroup: React.FC<TripGroupProps> = ({ title, trips, onOrderSelect, selectedOrderId }) => {
-  if (trips.length === 0) return null;
-
-  return (
-    <div className="mb-4">
-      <Typography variant="h6" className="mb-2">{title}</Typography>
-      {trips.map((trip, index) => (
-        <TripAccordion 
-          key={trip.tripId} 
-          trip={trip} 
-          onOrderSelect={onOrderSelect}
-          selectedOrderId={selectedOrderId}
-          defaultExpanded={index === 0}
-        />
-      ))}
-    </div>
-  );
+export const sortOrdersByCustomerStartTime = (orders) => {
+  return [...orders].sort((a, b) => {
+    const dateA = moment(a.customerStartTime);
+    const dateB = moment(b.customerStartTime);
+    return dateB.diff(dateA);
+  });
 };
 
-export default TripGroup;
-
-
-
-import React from 'react';
-import { Accordion, AccordionSummary, AccordionDetails, Typography } from '@mui/material';
-import { ExpandMore } from '@mui/icons-material';
-import OrderList from './OrderList';
-import PickupLocation from './PickupLocation';
-import { TripData } from '../types';
-
-interface TripAccordionProps {
-  trip: TripData;
-  onOrderSelect: (orderId: string) => void;
-  selectedOrderId: string | null;
-  defaultExpanded: boolean;
-}
-
-const TripAccordion: React.FC<TripAccordionProps> = ({ trip, onOrderSelect, selectedOrderId, defaultExpanded }) => {
-  return (
-    <Accordion defaultExpanded={defaultExpanded}>
-      <AccordionSummary expandIcon={<ExpandMore />}>
-        <div className="flex justify-between w-full">
-          <Typography>
-            Trip #{trip.tripId} | {trip.orders.length} orders | {trip.date}
-          </Typography>
-          <Typography>
-            {trip.timeRange} | {trip.status}
-          </Typography>
-        </div>
-      </AccordionSummary>
-      <AccordionDetails>
-        <PickupLocation location={trip.pickupLocation} />
-        <OrderList 
-          orders={trip.orders} 
-          onOrderSelect={onOrderSelect}
-          selectedOrderId={selectedOrderId}
-        />
-      </AccordionDetails>
-    </Accordion>
+export const groupAndSortDeliveryTasks = (deliveryTasks) => {
+  // Flatten the tasks array
+  const sortingOrder = [];
+  const allTasks = sortOrdersByCustomerStartTime(
+    Object.values(deliveryTasks).flat()
   );
+
+  // Group tasks by storeId
+  const groupedTasks = allTasks.reduce((acc, task) => {
+    const storeId = task.storeId.toString();
+    if (!acc[storeId]) {
+      acc[storeId] = [];
+      sortingOrder.push(storeId);
+    }
+    acc[storeId].push(task);
+    return acc;
+  }, {});
+
+  // Sort tasks within each store group
+  //   Object.keys(groupedTasks).forEach((storeId) => {
+  //     groupedTasks[storeId].sort((a, b) => {
+  //       const dateA = moment(a.customerStartTime);
+  //       const dateB = moment(b.customerStartTime);
+  //       return dateB.diff(dateA);
+  //     });
+  //   });
+
+  return { groupedTasks, sortingOrder };
 };
 
-export default TripAccordion;
-
-
-
-import React from 'react';
-import { Radio, Typography } from '@mui/material';
-import { OrderDetail } from '../types';
-
-interface OrderListProps {
-  orders: OrderDetail[];
-  onOrderSelect: (orderId: string) => void;
-  selectedOrderId: string | null;
-}
-
-const OrderList: React.FC<OrderListProps> = ({ orders, onOrderSelect, selectedOrderId }) => {
-  return (
-    <div>
-      {orders.map((order) => (
-        <div key={order.orderId} className="flex items-center mb-2">
-          <Radio
-            checked={selectedOrderId === order.orderId}
-            onChange={() => onOrderSelect(order.orderId)}
-          />
-          <div className="flex-grow">
-            <Typography>
-              {order.customerName} | Order #{order.orderId} | {order.deliveryWindow}
-            </Typography>
-            <Typography variant="body2" color="textSecondary">
-              {order.status}
-            </Typography>
-          </div>
-        </div>
-      ))}
-    </div>
-  );
+export const sortTripsAndGroupTasks = (trips) => {
+  const sortedTrips = sortTripsByStartDateTime(trips);
+  return sortedTrips.map((trip) => ({
+    ...trip,
+    deliveryTasksByStoreId: groupAndSortDeliveryTasks(
+      trip.deliveryTasksByTenantId
+    ).groupedTasks,
+    deliveryTasksSortingOrder: groupAndSortDeliveryTasks(
+      trip.deliveryTasksByTenantId
+    ).sortingOrder,
+  }));
 };
 
-export default OrderList;
+/////////////////////////////////////
 
 
-import React from 'react';
-import { Typography } from '@mui/material';
-import { Store, LocationOn } from '@mui/icons-material';
-import { PickupLocationData } from '../types';
 
-interface PickupLocationProps {
-  location: PickupLocationData;
+
+
+
+
+import moment from "moment";
+
+// Define types
+interface CustomerInfo {
+  customerFullName: string;
+  // Add other customer info fields as needed
 }
 
-const PickupLocation: React.FC<PickupLocationProps> = ({ location }) => {
-  return (
-    <div className="mb-4">
-      <div className="flex items-center">
-        <Store className="mr-2" />
-        <Typography>
-          {location.storeName} {location.storeNumber && `#${location.storeNumber}`} | {location.pickupWindow}
-        </Typography>
-      </div>
-      <div className="flex items-start ml-6">
-        <LocationOn className="mr-1 mt-1" />
-        <Typography>
-          {location.address.street}, {location.address.city}, {location.address.state} {location.address.zipCode}
-        </Typography>
-      </div>
-    </div>
-  );
-};
-
-export default PickupLocation;
-
-
-
-
-
-export interface OrderDetail {
+interface DeliveryTask {
+  id: string;
+  storeId: number;
   orderId: string;
-  customerName: string;
-  deliveryWindow: string;
-  status: string;
+  customerStartTime: number;
+  customerEndTime: number;
+  deliveryStatus: string;
+  customerInfo: CustomerInfo;
+  // Add other delivery task fields as needed
 }
 
-export interface PickupLocationData {
-  storeName: string;
-  storeNumber?: string;
-  pickupWindow: string;
-  address: {
-    street: string;
-    city: string;
-    state: string;
-    zipCode: string;
-  };
-}
-
-export interface TripData {
+interface Trip {
   tripId: string;
-  date: string;
-  timeRange: string;
-  status: string;
-  orders: OrderDetail[];
-  pickupLocation: PickupLocationData;
+  tripStartDateTime: number;
+  tripEndDateTime: number;
+  deliveryTasksByTenantId: { [key: string]: DeliveryTask[] };
+  // Add other trip fields as needed
 }
 
-export interface GroupedTrips {
-  today: TripData[];
-  past7Days: TripData[];
+interface GroupedTasks {
+  [storeId: string]: DeliveryTask[];
 }
 
-
-
-
-import { TripData, GroupedTrips } from './types';
-
-export function groupTripsByDate(trips: TripData[]): GroupedTrips {
-  const today = new Date().toDateString();
-  const sevenDaysAgo = new Date();
-  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-
-  return trips.reduce((acc: GroupedTrips, trip) => {
-    const tripDate = new Date(trip.date);
-    if (tripDate.toDateString() === today) {
-      acc.today.push(trip);
-    } else if (tripDate >= sevenDaysAgo) {
-      acc.past7Days.push(trip);
-    }
-    return acc;
-  }, { today: [], past7Days: [] });
+interface GroupAndSortResult {
+  groupedTasks: GroupedTasks;
+  sortingOrder: string[];
 }
 
-export function searchTrips(trips: TripData[], query: string): TripData[] {
-  const lowercaseQuery = query.toLowerCase();
-  return trips.filter(trip => 
-    trip.tripId.toLowerCase().includes(lowercaseQuery) ||
-    trip.orders.some(order => 
-      order.orderId.toLowerCase().includes(lowercaseQuery) ||
-      order.customerName.toLowerCase().includes(lowercaseQuery)
-    )
+interface SortedTrip extends Omit<Trip, 'deliveryTasksByTenantId'> {
+  deliveryTasksByStoreId: GroupedTasks;
+  deliveryTasksSortingOrder: string[];
+}
+
+// Utility functions
+export const sortTripsByStartDateTime = (trips: Trip[]): Trip[] => {
+  return [...trips].sort((a, b) => {
+    const dateA = moment(a.tripStartDateTime);
+    const dateB = moment(b.tripStartDateTime);
+    return dateB.diff(dateA);
+  });
+};
+
+export const sortOrdersByCustomerStartTime = (orders: DeliveryTask[]): DeliveryTask[] => {
+  return [...orders].sort((a, b) => {
+    const dateA = moment(a.customerStartTime);
+    const dateB = moment(b.customerStartTime);
+    return dateB.diff(dateA);
+  });
+};
+
+export const groupAndSortDeliveryTasks = (deliveryTasks: { [key: string]: DeliveryTask[] }): GroupAndSortResult => {
+  const sortingOrder: string[] = [];
+  const allTasks = sortOrdersByCustomerStartTime(
+    Object.values(deliveryTasks).flat()
   );
-}
 
-
-import { TripData, GroupedTrips } from './types';
-
-export function groupTripsByDate(trips: TripData[]): GroupedTrips {
-  const today = new Date().toDateString();
-  const sevenDaysAgo = new Date();
-  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-
-  return trips.reduce((acc: GroupedTrips, trip) => {
-    const tripDate = new Date(trip.date);
-    if (tripDate.toDateString() === today) {
-      acc.today.push(trip);
-    } else if (tripDate >= sevenDaysAgo) {
-      acc.past7Days.push(trip);
+  const groupedTasks = allTasks.reduce<GroupedTasks>((acc, task) => {
+    const storeId = task.storeId.toString();
+    if (!acc[storeId]) {
+      acc[storeId] = [];
+      sortingOrder.push(storeId);
     }
+    acc[storeId].push(task);
     return acc;
-  }, { today: [], past7Days: [] });
-}
+  }, {});
 
-export function searchTrips(trips: TripData[], query: string): TripData[] {
-  const lowercaseQuery = query.toLowerCase();
-  return trips.filter(trip => 
-    trip.tripId.toLowerCase().includes(lowercaseQuery) ||
-    trip.orders.some(order => 
-      order.orderId.toLowerCase().includes(lowercaseQuery) ||
-      order.customerName.toLowerCase().includes(lowercaseQuery)
-    )
-  );
-}
+  return { groupedTasks, sortingOrder };
+};
+
+export const sortTripsAndGroupTasks = (trips: Trip[]): SortedTrip[] => {
+  const sortedTrips = sortTripsByStartDateTime(trips);
+  return sortedTrips.map((trip) => {
+    const { groupedTasks, sortingOrder } = groupAndSortDeliveryTasks(
+      trip.deliveryTasksByTenantId
+    );
+    return {
+      ...trip,
+      deliveryTasksByStoreId: groupedTasks,
+      deliveryTasksSortingOrder: sortingOrder,
+    };
+  });
+};
