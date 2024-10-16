@@ -1,110 +1,56 @@
-import { TripData, GroupedTrips } from './types';
+import { useMemo } from "react";
+import moment from "moment";
+import { Trip, TripList } from "../types/trip";
 
-export function groupTripsByDate(trips: TripData[]): GroupedTrips {
-  const today = new Date().toDateString();
-  const sevenDaysAgo = new Date();
-  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+interface PaginatedTrips {
+  todayTrips: Trip[];
+  pastTrips: Trip[];
+  totalPages: number;
+}
 
-  return trips.reduce((acc: GroupedTrips, trip) => {
-    const tripDate = new Date(trip.date);
-    if (tripDate.toDateString() === today) {
-      acc.today.push(trip);
-    } else if (tripDate >= sevenDaysAgo) {
-      acc.past7Days.push(trip);
+export const usePaginatedTrips = (tripList: TripList, page: number, tripsPerPage: number): PaginatedTrips => {
+  return useMemo(() => {
+    const today = moment().startOf('day');
+    const allTrips = tripList.tripList;
+
+    const allTodayTrips = allTrips.filter(
+      (trip) => moment(trip.tripStartDateTime).isSame(today, 'day')
+    );
+    const allPastTrips = allTrips.filter(
+      (trip) => moment(trip.tripStartDateTime).isBefore(today, 'day')
+    );
+
+    const startIndex = (page - 1) * tripsPerPage;
+    const endIndex = startIndex + tripsPerPage;
+
+    let todayTripsOnPage: Trip[] = [];
+    let pastTripsOnPage: Trip[] = [];
+
+    if (startIndex < allTodayTrips.length) {
+      todayTripsOnPage = allTodayTrips.slice(
+        startIndex,
+        Math.min(endIndex, allTodayTrips.length)
+      );
+      if (todayTripsOnPage.length < tripsPerPage) {
+        pastTripsOnPage = allPastTrips.slice(
+          0,
+          tripsPerPage - todayTripsOnPage.length
+        );
+      }
+    } else {
+      const pastStartIndex = startIndex - allTodayTrips.length;
+      pastTripsOnPage = allPastTrips.slice(
+        pastStartIndex,
+        pastStartIndex + tripsPerPage
+      );
     }
-    return acc;
-  }, { today: [], past7Days: [] });
-}
 
-export function searchTrips(trips: TripData[], query: string): TripData[] {
-  const lowercaseQuery = query.toLowerCase();
-  return trips.filter(trip => 
-    trip.tripId.toLowerCase().includes(lowercaseQuery) ||
-    trip.orders.some(order => 
-      order.orderId.toLowerCase().includes(lowercaseQuery) ||
-      order.customerName.toLowerCase().includes(lowercaseQuery)
-    )
-  );
-}
-
-
-
-
-
-import React from 'react';
-import { Typography } from '@mui/material';
-import TripAccordion from './TripAccordion';
-import { TripData } from '../types';
-
-interface TripGroupProps {
-  title: string;
-  trips: TripData[];
-  onOrderSelect: (orderId: string) => void;
-  selectedOrderId: string | null;
-}
-
-const TripGroup: React.FC<TripGroupProps> = ({ title, trips, onOrderSelect, selectedOrderId }) => {
-  if (trips.length === 0) return null;
-
-  return (
-    <div className="mb-4">
-      <Typography variant="h6" className="mb-2">{title}</Typography>
-      {trips.map((trip, index) => (
-        <TripAccordion 
-          key={trip.tripId} 
-          trip={trip} 
-          onOrderSelect={onOrderSelect}
-          selectedOrderId={selectedOrderId}
-          defaultExpanded={index === 0}
-        />
-      ))}
-    </div>
-  );
+    return {
+      todayTrips: todayTripsOnPage,
+      pastTrips: pastTripsOnPage,
+      totalPages: Math.ceil(
+        (allTodayTrips.length + allPastTrips.length) / tripsPerPage
+      ),
+    };
+  }, [tripList, page, tripsPerPage]);
 };
-
-export default TripGroup;
-
-
-
-
-
-import React, { useState } from 'react';
-import { TextField, InputAdornment, Button } from '@mui/material';
-import { Search } from '@mui/icons-material';
-
-interface SearchBarProps {
-  onSearch: (query: string) => void;
-  placeholder: string;
-}
-
-const SearchBar: React.FC<SearchBarProps> = ({ onSearch, placeholder }) => {
-  const [searchQuery, setSearchQuery] = useState<string>('');
-
-  const handleSearch = () => {
-    onSearch(searchQuery);
-  };
-
-  return (
-    <div className="flex mb-4">
-      <TextField
-        fullWidth
-        variant="outlined"
-        placeholder={placeholder}
-        value={searchQuery}
-        onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearchQuery(e.target.value)}
-        InputProps={{
-          startAdornment: (
-            <InputAdornment position="start">
-              <Search />
-            </InputAdornment>
-          ),
-        }}
-      />
-      <Button variant="outlined" className="ml-2" onClick={handleSearch}>
-        Search
-      </Button>
-    </div>
-  );
-};
-
-export default SearchBar;
